@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+{% block title %}Solar System · Deep Sky Observatory{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+  <div class="d-flex align-items-baseline gap-3 mb-4">
+    <h1 class="h3 mb-0"><i class="bi bi-planet text-warning"></i> Solar System</h1>
+    {% if location.get('place_name') %}
+    <span class="text-muted small">from {{ location.place_name }}</span>
+    {% elif not location.get('latitude') %}
+    <span class="text-muted small">— <a href="#" data-bs-toggle="modal" data-bs-target="#locationModal">set your location</a> for altitude data</span>
+    {% endif %}
+  </div>
+
+  <!-- ── Sun & Moon ─────────────────────────────────────────────────────────── -->
+  <div class="row g-3 mb-4">
+
+    <!-- Sun -->
+    <div class="col-md-6">
+      <div class="card bg-dark border-secondary h-100">
+        <div class="card-body">
+          <h5 class="card-title text-warning mb-3">
+            <i class="bi bi-sun"></i> Sun
+            <span class="badge bg-{{ 'danger' if sun.sky_state == 'daytime' else 'info' if 'twilight' in sun.sky_state else 'dark border border-secondary' }} ms-2 small">
+              {{ sun.sky_state|title }}
+            </span>
+          </h5>
+          <div class="row g-2 small">
+            <div class="col-6"><span class="text-muted">Altitude</span><br>
+              <strong>{{ sun.altitude }}°</strong></div>
+            <div class="col-6"><span class="text-muted">Magnitude</span><br>
+              <strong>{{ sun.magnitude }}</strong></div>
+            {% if sun.sunrise %}<div class="col-6"><span class="text-muted">Sunrise</span><br>
+              <strong>{{ sun.sunrise }}</strong></div>{% endif %}
+            {% if sun.sunset %}<div class="col-6"><span class="text-muted">Sunset</span><br>
+              <strong>{{ sun.sunset }}</strong></div>{% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Moon -->
+    <div class="col-md-6">
+      <div class="card bg-dark border-secondary h-100">
+        <div class="card-body">
+          <h5 class="card-title text-warning mb-3">
+            <i class="bi bi-moon-stars"></i> Moon
+            <span class="text-muted ms-2 small">{{ moon.phase_name }}</span>
+          </h5>
+          <div class="row g-2 small">
+            <div class="col-6"><span class="text-muted">Illumination</span><br>
+              <strong>{{ moon.phase_pct }}%</strong></div>
+            <div class="col-6"><span class="text-muted">Age</span><br>
+              <strong>{{ moon.age_days }} days</strong></div>
+            <div class="col-6"><span class="text-muted">Next New Moon</span><br>
+              <strong>{{ moon.next_new }}</strong></div>
+            <div class="col-6"><span class="text-muted">Next Full Moon</span><br>
+              <strong>{{ moon.next_full }}</strong></div>
+            <div class="col-6"><span class="text-muted">Angular Size</span><br>
+              <strong>{{ moon.ang_size_arcsec }}"</strong></div>
+            <div class="col-6"><span class="text-muted">Magnitude</span><br>
+              <strong>{{ moon.magnitude }}</strong></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Planets ────────────────────────────────────────────────────────────── -->
+  <h2 class="h5 text-muted mb-3"><i class="bi bi-globe2 text-warning"></i> Planets &amp; Dwarf Planets</h2>
+  <div class="table-responsive mb-5">
+    <table class="table table-dark table-hover table-sm align-middle">
+      <thead class="border-secondary">
+        <tr>
+          <th>Planet</th>
+          <th>Type</th>
+          <th>Magnitude</th>
+          <th>Altitude</th>
+          <th>Azimuth</th>
+          <th>Rise</th>
+          <th>Transit</th>
+          <th>Set</th>
+          <th>Dist (AU)</th>
+          <th>Phase</th>
+          <th>Constellation</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in planets %}
+        <tr class="{% if p.above_horizon %}table-active-season{% endif %}">
+          <td>
+            <span class="me-1">{{ p.symbol }}</span>
+            <strong>{{ p.name }}</strong>
+          </td>
+          <td class="text-muted small">{{ p.type }}</td>
+          <td class="text-warning">
+            {% if p.magnitude is not none %}★ {{ '%.1f'|format(p.magnitude) }}{% else %}—{% endif %}
+          </td>
+          <td>
+            {% if p.altitude is not none %}
+              <span class="{% if p.above_horizon %}text-success{% else %}text-muted{% endif %}">
+                {{ p.altitude }}°
+                {% if p.above_horizon %}<i class="bi bi-arrow-up-short"></i>{% endif %}
+              </span>
+            {% else %}—{% endif %}
+          </td>
+          <td class="text-muted">{% if p.azimuth is not none %}{{ p.azimuth }}°{% else %}—{% endif %}</td>
+          <td class="text-muted small">{{ p.rise_time or '—' }}</td>
+          <td class="text-muted small">{{ p.transit_time or '—' }}</td>
+          <td class="text-muted small">{{ p.set_time or '—' }}</td>
+          <td class="text-muted small">{% if p.dist_au %}{{ p.dist_au }} AU{% else %}—{% endif %}</td>
+          <td class="text-muted small">{% if p.phase_pct is not none %}{{ p.phase_pct }}%{% else %}—{% endif %}</td>
+          <td class="text-muted small">{{ p.constellation or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ── Satellites ─────────────────────────────────────────────────────────── -->
+  <h2 class="h5 text-muted mb-3"><i class="bi bi-broadcast text-warning"></i> Earth Satellites</h2>
+  <p class="text-muted small mb-3">Positions update in real time using live TLE data from Celestrak (auto-refreshed every 6 hours).</p>
+  <div class="row g-3 mb-5">
+    {% for sat in satellites %}
+    <div class="col-md-4">
+      <div class="card bg-dark border-secondary h-100">
+        <div class="card-body">
+          <h6 class="card-title mb-1">
+            {{ sat.symbol }} {{ sat.common_name }}
+            {% if sat.above_horizon %}
+            <span class="badge bg-success ms-1 small">Visible</span>
+            {% elif sat.above_horizon == false %}
+            <span class="badge bg-secondary ms-1 small">Below horizon</span>
+            {% endif %}
+            {% if sat.eclipsed %}
+            <span class="badge bg-dark border border-secondary ms-1 small" title="In Earth's shadow">In shadow</span>
+            {% endif %}
+          </h6>
+          <p class="text-muted small mb-2">{{ sat.name }}</p>
+          <div class="row g-1 small">
+            {% if sat.altitude is not none %}
+            <div class="col-6"><span class="text-muted">Altitude</span><br>
+              <strong class="{{ 'text-success' if sat.above_horizon else 'text-muted' }}">{{ sat.altitude }}°</strong></div>
+            <div class="col-6"><span class="text-muted">Azimuth</span><br>
+              <strong>{{ sat.azimuth }}°</strong></div>
+            {% endif %}
+            {% if sat.range_km %}
+            <div class="col-6"><span class="text-muted">Range</span><br>
+              <strong>{{ '{:,.0f}'.format(sat.range_km) }} km</strong></div>
+            {% endif %}
+            {% if sat.orbital_alt_km %}
+            <div class="col-6"><span class="text-muted">Orbital Alt</span><br>
+              <strong>{{ '{:,.0f}'.format(sat.orbital_alt_km) }} km</strong></div>
+            {% endif %}
+            {% if sat.rise_time and sat.rise_time != '—' %}
+            <div class="col-4"><span class="text-muted">Rise</span><br><strong>{{ sat.rise_time }}</strong></div>
+            <div class="col-4"><span class="text-muted">Transit</span><br><strong>{{ sat.transit_time }}</strong></div>
+            <div class="col-4"><span class="text-muted">Set</span><br><strong>{{ sat.set_time }}</strong></div>
+            {% endif %}
+          </div>
+          <p class="text-muted small mt-2 mb-0">{{ sat.observer_notes }}</p>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- ── Comets ─────────────────────────────────────────────────────────────── -->
+  <h2 class="h5 text-muted mb-3"><i class="bi bi-stars text-warning"></i> Notable Comets</h2>
+  <p class="text-muted small mb-3">
+    Magnitudes are computed from orbital elements and current distance — accuracy varies with element age.
+    Comets fainter than magnitude 12 require a telescope; above magnitude 6 may be naked-eye.
+  </p>
+  <div class="table-responsive mb-4">
+    <table class="table table-dark table-hover table-sm align-middle">
+      <thead class="border-secondary">
+        <tr>
+          <th>Comet</th>
+          <th>Magnitude</th>
+          <th>Altitude</th>
+          <th>Rise</th>
+          <th>Transit</th>
+          <th>Set</th>
+          <th>Earth Dist</th>
+          <th>Sun Dist</th>
+          <th>Period</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in comets %}
+        <tr class="{% if c.above_horizon %}table-active-season{% endif %}">
+          <td>
+            <strong>{{ c.name }}</strong>
+          </td>
+          <td class="text-warning">
+            {% if c.magnitude and c.magnitude != 0.0 %}
+              ★ {{ '%.1f'|format(c.magnitude) }}
+            {% else %}
+              <span class="text-muted">N/A</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if c.altitude is not none %}
+              <span class="{% if c.above_horizon %}text-success{% else %}text-muted{% endif %}">
+                {{ c.altitude }}°
+              </span>
+            {% else %}—{% endif %}
+          </td>
+          <td class="text-muted small">{{ c.rise_time or '—' }}</td>
+          <td class="text-muted small">{{ c.transit_time or '—' }}</td>
+          <td class="text-muted small">{{ c.set_time or '—' }}</td>
+          <td class="text-muted small">{% if c.dist_au %}{{ c.dist_au }} AU{% else %}—{% endif %}</td>
+          <td class="text-muted small">{% if c.sun_dist_au %}{{ c.sun_dist_au }} AU{% else %}—{% endif %}</td>
+          <td class="text-muted small">
+            {% if c.period_years %}
+              {% if c.period_years > 1000 %}~{{ (c.period_years / 1000)|round(1) }}k yrs
+              {% else %}{{ c.period_years }} yrs{% endif %}
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+        <!-- Description row -->
+        <tr class="border-0">
+          <td colspan="9" class="text-muted small pt-0 pb-2" style="border-top:none">
+            {{ c.observer_notes }}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+</div>
+{% endblock %}

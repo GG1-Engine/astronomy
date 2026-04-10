@@ -66,6 +66,12 @@
           </ul>
         </li>
         <li class="nav-item">
+          <a class="nav-link px-2{% if request.endpoint == 'solar_system_page' %} active{% endif %}"
+             href="{{ url_for('solar_system_page') }}">
+            <i class="bi bi-planet"></i> Solar System
+          </a>
+        </li>
+        <li class="nav-item">
           <a class="nav-link px-2" href="{{ url_for('random_obj') }}" title="Random object">
             <i class="bi bi-shuffle"></i>
           </a>

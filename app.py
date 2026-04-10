@@ -16,6 +16,7 @@ import urllib.parse
 import threading
 from flask import (Flask, render_template, request, jsonify,
                    redirect, url_for, abort, send_file, Response)
+import solar_system as ss
 
 app = Flask(__name__)
 BASE_DIR    = os.path.dirname(__file__)
@@ -864,6 +865,25 @@ def api_altaz():
         "set_az":        info["set_az"],
         "location":      loc["name"],
     })
+
+
+@app.route("/solar-system")
+def solar_system_page():
+    loc     = load_settings()
+    lat     = loc.get("latitude")
+    lon     = loc.get("longitude")
+    planets = ss.get_all_planets(lat, lon)
+    moon    = ss.get_moon_phase()
+    sun     = ss.get_sun_data(lat, lon)
+    comets  = ss.get_all_comets(lat, lon)
+    sats    = ss.get_all_satellites(lat, lon)
+    return render_template("solar_system.html",
+                           planets=planets,
+                           moon=moon,
+                           sun=sun,
+                           comets=comets,
+                           satellites=sats,
+                           location=loc)
 
 
 @app.route("/settings")

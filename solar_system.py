@@ -2,11 +2,16 @@
 solar_system.py — Dynamic solar system object data using PyEphem.
 
 Provides current positions, magnitudes, phase, and observer-specific
-altitude/azimuth for planets, dwarf planets, and notable small bodies.
+altitude/azimuth for planets, dwarf planets, notable small bodies,
+comets, and Earth-orbiting satellites (ISS etc.) via live TLE data.
 """
 
 import math
 import datetime
+import os
+import json
+import time
+import urllib.request
 import ephem
 
 # ── Static encyclopedic data ──────────────────────────────────────────────────
@@ -241,24 +246,426 @@ DWARF_PLANETS = {
     },
 }
 
-# Notable comets with orbital elements (epoch, inclination, etc.)
-# These are updated periodically; bright historical/recurring comets included.
-COMETS_TLE = {
+# ── Comets ───────────────────────────────────────────────────────────────────
+# Curated list of notable/currently-observable comets.
+# Orbital elements in PyEphem XEphem format:
+#   name,e,inc,LAN,AP,e,q,Epoch,M  (for elliptical)
+#   or use ephem.readdb() with standard MPC format strings.
+#
+# Format per entry: human metadata + "xephem" string for PyEphem.
+# XEphem DB string columns: name, type, epoch, inc, LAN, e, q, Tp
+# type "e" = elliptical comet: epoch,i,Om,om,e,q,Tp
+# We use the simpler ephem.readdb() parabolic/elliptical comet format.
+
+COMETS = {
     "1P/Halley": {
         "description": (
             "The most famous periodic comet, visible to the naked eye roughly every "
-            "75–76 years. Last perihelion was in 1986; next expected ~2061."
+            "75–76 years. Last perihelion 1986; next expected ~2061."
+        ),
+        "observer_notes": (
+            "Currently magnitude ~28 — far too faint to observe. The Eta Aquariids (May) "
+            "and Orionids (October) meteor showers come from its debris trail."
         ),
         "period_years": 75.3,
-        "last_perihelion": "1986-02-09",
         "next_perihelion": "2061-07-28",
+        # XEphem elliptical comet format (13 fields):
+        # name,e,Tp,inc,LAN,AP,e,q,Tp,equinox,g,k,s
+        "xephem": "1P/Halley,e,19860209.6812,162.2629,58.8201,111.3329,0.9673,0.5872,19860209.6812,2000,-2.0,4.0,0",
+    },
+    "2P/Encke": {
+        "description": (
+            "The shortest-period comet known (~3.3 years). Source of the Taurid meteor "
+            "shower. Usually faint but can reach mag 4–5 at favorable perihelion passes."
+        ),
         "observer_notes": (
-            "Currently too faint to observe (mag ~28). Best seen near perihelion. "
-            "The Eta Aquariids (May) and Orionids (October) meteor showers are "
-            "caused by debris from Halley's Comet."
+            "Small, diffuse coma. Best observed in the weeks around perihelion. "
+            "Binoculars or a small telescope needed at most apparitions."
+        ),
+        "period_years": 3.3,
+        "xephem": "2P/Encke,e,20231023.2800,11.7806,334.5680,186.5398,0.8482,0.3356,20231023.2800,2000,4.0,4.0,0",
+    },
+    "9P/Tempel 1": {
+        "description": (
+            "Target of NASA's Deep Impact mission in 2005, which intentionally crashed "
+            "a probe into the comet's nucleus. Period ~5.5 years."
+        ),
+        "observer_notes": (
+            "Typically magnitude 10–11 near perihelion — requires a moderate telescope. "
+            "Famous for the Deep Impact ejecta cloud observed worldwide."
+        ),
+        "period_years": 5.5,
+        "xephem": "9P/Tempel 1,e,20050704.9,10.4740,68.9321,178.8580,0.5051,1.5028,20050704.9,2000,5.5,4.0,0",
+    },
+    "17P/Holmes": {
+        "description": (
+            "Famous for an extraordinary outburst in October 2007 that briefly made it "
+            "the largest object in the solar system by volume (coma exceeded the Sun's diameter)."
+        ),
+        "observer_notes": (
+            "Normally faint (~17th magnitude). The 2007 outburst brightened it by ~14 magnitudes "
+            "to naked-eye visibility in Perseus — one of the most dramatic cometary events in decades."
+        ),
+        "period_years": 6.9,
+        "xephem": "17P/Holmes,e,20071124.9,19.1126,326.8550,24.3540,0.4324,2.2054,20071124.9,2000,5.0,4.0,0",
+    },
+    "67P/Churyumov-Gerasimenko": {
+        "description": (
+            "Target of ESA's Rosetta mission, which orbited the comet for two years "
+            "and landed the Philae probe on its surface in 2014. Period ~6.4 years."
+        ),
+        "observer_notes": (
+            "Reaches magnitude 6–8 near perihelion — binoculars show it as a fuzzy star. "
+            "Last perihelion November 2021; next ~May 2028."
+        ),
+        "period_years": 6.4,
+        "xephem": "67P/Churyumov-Gerasimenko,e,20211102.4,7.0405,50.1350,12.8007,0.6401,1.2102,20211102.4,2000,6.0,4.0,0",
+    },
+    "C/1995 O1 (Hale-Bopp)": {
+        "description": (
+            "One of the brightest comets of the 20th century, visible to the naked eye "
+            "for a record 18 months in 1996–1997. Its twin dust and ion tails were spectacular."
+        ),
+        "observer_notes": (
+            "Currently far beyond Saturn's orbit and magnitude ~30+. Won't return for "
+            "roughly 2,500 years. The 1997 apparition remains a benchmark for comet brightness."
+        ),
+        "period_years": 2520,
+        "xephem": "C/1995 O1 (Hale-Bopp),e,19970401.1,89.4298,282.4707,130.5887,0.9951,0.9142,19970401.1,2000,-1.0,4.0,0",
+    },
+    "C/2020 F3 (NEOWISE)": {
+        "description": (
+            "Discovered by the NEOWISE space telescope in March 2020. Became the brightest "
+            "comet visible from the northern hemisphere in over 20 years, reaching magnitude 0.5."
+        ),
+        "observer_notes": (
+            "Now extremely faint — billions of km from the Sun. The July 2020 apparition "
+            "produced stunning naked-eye views and distinctive dust/ion tails. Won't return "
+            "for approximately 6,800 years."
+        ),
+        "period_years": 6800,
+        "xephem": "C/2020 F3 (NEOWISE),e,20200703.7,128.9378,61.0113,37.2780,0.9992,0.2946,20200703.7,2000,2.5,4.0,0",
+    },
+}
+
+
+def get_comet_position(name, lat=None, lon=None, dt=None):
+    """
+    Compute current position and visibility for a comet by name.
+    Returns a dict or None if the comet isn't in our catalog or can't be computed.
+    """
+    if name not in COMETS:
+        return None
+    info = COMETS[name]
+    xephem = info.get("xephem")
+    if not xephem:
+        return None
+
+    if dt is None:
+        dt = datetime.datetime.now(datetime.timezone.utc)
+
+    try:
+        body = ephem.readdb(xephem)
+        obs  = _make_observer(lat, lon, dt)
+        body.compute(obs)
+
+        alt_deg = math.degrees(float(body.alt))
+        az_deg  = math.degrees(float(body.az))
+        ra_deg  = math.degrees(float(body.ra))
+        dec_deg = math.degrees(float(body.dec))
+
+        try:
+            mag = round(float(body.mag), 1)
+        except Exception:
+            mag = None
+
+        try:
+            dist_au = round(float(body.earth_distance), 3)
+        except Exception:
+            dist_au = None
+
+        try:
+            sun_dist = round(float(body.sun_distance), 3)
+        except Exception:
+            sun_dist = None
+
+        try:
+            rise_str  = ephem.localtime(obs.next_rising(body)).strftime("%H:%M")
+            set_str   = ephem.localtime(obs.next_setting(body)).strftime("%H:%M")
+            trans_str = ephem.localtime(obs.next_transit(body)).strftime("%H:%M")
+        except ephem.AlwaysUpError:
+            rise_str = set_str = trans_str = "Circumpolar"
+        except ephem.NeverUpError:
+            rise_str = set_str = trans_str = "Never rises"
+        except Exception:
+            rise_str = set_str = trans_str = "—"
+
+        return {
+            "name":          name,
+            "ra_deg":        round(ra_deg, 4),
+            "dec_deg":       round(dec_deg, 4),
+            "altitude":      round(alt_deg, 1) if lat is not None else None,
+            "azimuth":       round(az_deg, 1)  if lat is not None else None,
+            "above_horizon": alt_deg > 0        if lat is not None else None,
+            "magnitude":     mag,
+            "dist_au":       dist_au,
+            "sun_dist_au":   sun_dist,
+            "rise_time":     rise_str  if lat is not None else None,
+            "set_time":      set_str   if lat is not None else None,
+            "transit_time":  trans_str if lat is not None else None,
+            "description":         info.get("description", ""),
+            "observer_notes":      info.get("observer_notes", ""),
+            "period_years":        info.get("period_years"),
+            "next_perihelion":     info.get("next_perihelion"),
+        }
+    except Exception:
+        return None
+
+
+def get_all_comets(lat=None, lon=None, dt=None):
+    """Return list of dicts for all tracked comets."""
+    results = []
+    for name in COMETS:
+        pos = get_comet_position(name, lat, lon, dt)
+        if pos:
+            results.append(pos)
+    # Sort by magnitude (brightest first), None last
+    results.sort(key=lambda x: (x["magnitude"] is None, x["magnitude"] or 99))
+    return results
+
+
+# ── Satellites (TLE-based) ────────────────────────────────────────────────────
+
+# Celestrak new GP data API (CATNR = NORAD catalog number)
+_TLE_URLS = {
+    "ISS (ZARYA)":  "https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=TLE",
+    "CSS (TIANHE)": "https://celestrak.org/NORAD/elements/gp.php?CATNR=48274&FORMAT=TLE",
+    "HST":          "https://celestrak.org/NORAD/elements/gp.php?CATNR=20580&FORMAT=TLE",
+}
+
+# Fallback TLEs — used if Celestrak is unreachable.
+# These are periodically stale but good enough for approximate position.
+# The app will replace them with live data on first successful network fetch.
+_FALLBACK_TLES = {
+    "ISS (ZARYA)": (
+        "ISS (ZARYA)",
+        "1 25544U 98067A   26099.81181649  .00006374  00000+0  12437-3 0  9993",
+        "2 25544  51.6329 278.4805 0006426 293.1753  66.8558 15.48850892561156",
+    ),
+    "CSS (TIANHE)": (
+        "CSS (TIANHE)",
+        "1 48274U 21035A   26099.79993243  .00026712  00000+0  29783-3 0  9997",
+        "2 48274  41.4683  18.6460 0004513 172.0763 188.0148 15.62188173282472",
+    ),
+    "HST": (
+        "HST",
+        "1 20580U 90037B   26099.79166667  .00001800  00000+0  85730-4 0  9991",
+        "2 20580  28.4697 297.7641 0002572  19.5381 340.5669 15.09555944392844",
+    ),
+}
+
+_SATELLITE_DISPLAY = {
+    "ISS (ZARYA)": {
+        "common_name": "International Space Station",
+        "symbol": "🛸",
+        "description": (
+            "The largest human-made structure in space, assembled over 13 years "
+            "starting in 1998. Home to rotating crews of 6–7 astronauts from "
+            "multiple nations. Orbits at ~400 km altitude, completing 15.5 orbits per day."
+        ),
+        "observer_notes": (
+            "One of the brightest objects in the night sky — can reach magnitude −5.9. "
+            "Appears as a fast-moving, steady (non-blinking) bright star crossing the sky "
+            "in 2–5 minutes. Use NASA's Spot the Station for precise pass predictions."
+        ),
+    },
+    "CSS (TIANHE)": {
+        "common_name": "Chinese Space Station (Tiangong)",
+        "symbol": "🛸",
+        "description": (
+            "China's permanent modular space station, with the core Tianhe module "
+            "launched in April 2021. Designed for a 10-year lifespan with rotating "
+            "3-person crews. Orbits at ~390 km altitude."
+        ),
+        "observer_notes": (
+            "Visible to naked eye, typically reaching magnitude −1 to −3. "
+            "Appears similar to the ISS — a steady, fast-moving bright point. "
+            "Passes are less frequently predicted in Western apps than the ISS."
+        ),
+    },
+    "HST": {
+        "common_name": "Hubble Space Telescope",
+        "symbol": "🔭",
+        "description": (
+            "Launched in 1990, the Hubble Space Telescope has revolutionized astronomy "
+            "with observations from ultraviolet to near-infrared. Orbits at ~540 km, "
+            "completing about 15 orbits per day."
+        ),
+        "observer_notes": (
+            "Visible with naked eye under dark skies, reaching magnitude ~2–4. "
+            "Smaller and dimmer than the ISS — binoculars help. Moves steadily "
+            "across the sky like a satellite."
         ),
     },
 }
+
+_BASE_DIR     = os.path.dirname(__file__)
+_TLE_CACHE    = os.path.join(_BASE_DIR, "tle_cache.json")
+_TLE_MAX_AGE  = 6 * 3600   # refresh TLEs if older than 6 hours
+
+
+def _load_tle_cache():
+    try:
+        with open(_TLE_CACHE) as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+
+def _save_tle_cache(data):
+    try:
+        with open(_TLE_CACHE, "w") as f:
+            json.dump(data, f, indent=2)
+    except Exception:
+        pass
+
+
+def _fetch_tle_for_sat(name, url):
+    """Fetch TLE lines for a single satellite from Celestrak. Returns (line1, line2) or None."""
+    try:
+        req = urllib.request.Request(
+            url,
+            headers={"User-Agent": "DeepSkyObservatory/1.0"}
+        )
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            text = resp.read().decode("utf-8", errors="replace").strip()
+        lines = [l.strip() for l in text.splitlines() if l.strip()]
+        # Find TLE lines: line1 starts with '1 ', line2 starts with '2 '
+        l1 = next((l for l in lines if l.startswith("1 ")), None)
+        l2 = next((l for l in lines if l.startswith("2 ")), None)
+        if l1 and l2:
+            return l1, l2
+    except Exception:
+        pass
+    return None
+
+
+def _get_tles():
+    """Return fresh TLEs for all tracked satellites, using cache or fallback."""
+    cache = _load_tle_cache()
+    now   = time.time()
+    updated = False
+
+    for sat_name, url in _TLE_URLS.items():
+        entry = cache.get(sat_name, {})
+        age   = now - entry.get("fetched_at", 0)
+        if age > _TLE_MAX_AGE or "line1" not in entry:
+            result = _fetch_tle_for_sat(sat_name, url)
+            if result:
+                cache[sat_name] = {
+                    "line1":      result[0],
+                    "line2":      result[1],
+                    "fetched_at": now,
+                }
+                updated = True
+
+    if updated:
+        _save_tle_cache(cache)
+
+    return cache
+
+
+def get_satellite_position(sat_name, lat=None, lon=None, dt=None):
+    """
+    Compute current position and visibility for a tracked satellite.
+    Returns a dict or None.
+    """
+    if dt is None:
+        dt = datetime.datetime.now(datetime.timezone.utc)
+
+    tles    = _get_tles()
+    entry   = tles.get(sat_name)
+    display = _SATELLITE_DISPLAY.get(sat_name, {})
+
+    # Get TLE lines — from cache or fallback
+    if entry and "line1" in entry:
+        name_line = sat_name
+        line1     = entry["line1"]
+        line2     = entry["line2"]
+    elif sat_name in _FALLBACK_TLES:
+        name_line, line1, line2 = _FALLBACK_TLES[sat_name]
+    else:
+        return None
+
+    try:
+        sat = ephem.readtle(name_line, line1, line2)
+        obs = _make_observer(lat, lon, dt)
+        sat.compute(obs)
+
+        alt_deg = math.degrees(float(sat.alt))
+        az_deg  = math.degrees(float(sat.az))
+        ra_deg  = math.degrees(float(sat.ra))
+        dec_deg = math.degrees(float(sat.dec))
+
+        # Range (distance from observer) in km
+        try:
+            range_km = round(float(sat.range) / 1000, 1)
+        except Exception:
+            range_km = None
+
+        # Orbital altitude approximation
+        try:
+            elev_km = round(float(sat.elevation) / 1000, 1)
+        except Exception:
+            elev_km = None
+
+        # Eclipsed by Earth's shadow?
+        try:
+            eclipsed = bool(sat.eclipsed)
+        except Exception:
+            eclipsed = None
+
+        # Rise / set (next pass)
+        try:
+            rise_dt  = obs.next_rising(sat)
+            set_dt   = obs.next_setting(sat)
+            trans_dt = obs.next_transit(sat)
+            rise_str  = ephem.localtime(rise_dt).strftime("%H:%M")
+            set_str   = ephem.localtime(set_dt).strftime("%H:%M")
+            trans_str = ephem.localtime(trans_dt).strftime("%H:%M")
+        except Exception:
+            rise_str = set_str = trans_str = "—"
+
+        return {
+            "name":          sat_name,
+            "common_name":   display.get("common_name", sat_name),
+            "symbol":        display.get("symbol", "🛸"),
+            "description":   display.get("description", ""),
+            "observer_notes":display.get("observer_notes", ""),
+            "ra_deg":        round(ra_deg, 4),
+            "dec_deg":       round(dec_deg, 4),
+            "altitude":      round(alt_deg, 1) if lat is not None else None,
+            "azimuth":       round(az_deg, 1)  if lat is not None else None,
+            "above_horizon": alt_deg > 0        if lat is not None else None,
+            "eclipsed":      eclipsed,
+            "range_km":      range_km,
+            "orbital_alt_km":elev_km,
+            "rise_time":     rise_str  if lat is not None else None,
+            "set_time":      set_str   if lat is not None else None,
+            "transit_time":  trans_str if lat is not None else None,
+        }
+    except Exception:
+        return None
+
+
+def get_all_satellites(lat=None, lon=None, dt=None):
+    """Return list of dicts for all tracked satellites."""
+    results = []
+    for name in _SATELLITE_DISPLAY:
+        pos = get_satellite_position(name, lat, lon, dt)
+        if pos:
+            results.append(pos)
+    return results
 
 # Notable asteroids (beyond Ceres) with ephem-compatible data
 NOTABLE_ASTEROIDS = {

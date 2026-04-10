@@ -16,5 +16,8 @@ settings.json
 # Cached thumbnail images
 static/thumbcache/
 
+# Satellite TLE cache (runtime-fetched from Celestrak)
+tle_cache.json
+
 # Claude Code internal settings
 .claude/
