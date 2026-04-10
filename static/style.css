@@ -1,0 +1,395 @@
+/* ── Deep Sky Observatory — Dark Astronomy Theme ───────────────────────────── */
+
+:root {
+  --space-black:   #08090d;
+  --space-dark:    #0d0f18;
+  --card-bg:       #111420;
+  --card-border:   #1e2235;
+  --star-gold:     #ffd700;
+  --nebula-blue:   #4fc3f7;
+  --text-muted:    #6b7494;
+}
+
+body {
+  background-color: var(--space-black);
+  color: #c8cfe8;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+/* ── Navbar ─────────────────────────────────────────────────────────────────── */
+.navbar {
+  background-color: #05060b !important;
+}
+
+.logo-icon {
+  color: var(--star-gold);
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.nav-search-form {
+  position: relative;
+  width: 340px;
+}
+
+.nav-search-group .form-control {
+  background-color: #111420;
+}
+
+.nav-search-group .form-control:focus {
+  background-color: #151829;
+  box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.2);
+  border-color: rgba(255, 215, 0, 0.4);
+  color: #e0e4f4;
+}
+
+/* ── Autocomplete ────────────────────────────────────────────────────────────── */
+.autocomplete-dropdown {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 1055;
+  background: #111420;
+  border: 1px solid #2a2f4a;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  max-height: 340px;
+  overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.7);
+}
+
+.autocomplete-dropdown.show { display: block; }
+
+.hero-ac {
+  border-radius: 0 0 12px 12px;
+  top: calc(100% + 2px);
+}
+
+.ac-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  text-decoration: none;
+  color: #c8cfe8;
+  border-bottom: 1px solid #1a1f35;
+  transition: background .12s;
+}
+
+.ac-item:hover { background: #1a2040; color: #fff; }
+.ac-label { font-size: .9rem; }
+.ac-type  { font-size: .75rem; color: var(--text-muted); white-space: nowrap; margin-left: 8px; }
+
+/* ── Hero section ────────────────────────────────────────────────────────────── */
+.hero-section {
+  background: radial-gradient(ellipse at 60% 40%, #0d1535 0%, var(--space-black) 70%),
+              url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Crect fill='%2308090d' width='400' height='400'/%3E%3Ccircle fill='%23ffffff' cx='50' cy='80' r='0.8' opacity='0.6'/%3E%3Ccircle fill='%23ffffff' cx='120' cy='30' r='1.1' opacity='0.8'/%3E%3Ccircle fill='%23ffd700' cx='200' cy='60' r='1.5' opacity='0.5'/%3E%3Ccircle fill='%23ffffff' cx='320' cy='90' r='0.7' opacity='0.7'/%3E%3Ccircle fill='%23ffffff' cx='380' cy='20' r='1.0' opacity='0.6'/%3E%3Ccircle fill='%23aac4ff' cx='70' cy='150' r='0.9' opacity='0.5'/%3E%3Ccircle fill='%23ffffff' cx='280' cy='150' r='0.6' opacity='0.8'/%3E%3Ccircle fill='%23ffffff' cx='160' cy='200' r='0.8' opacity='0.4'/%3E%3Ccircle fill='%23ffd700' cx='340' cy='200' r='1.2' opacity='0.6'/%3E%3C/svg%3E");
+  border-bottom: 1px solid #1a1f35;
+}
+
+.hero-search-form {
+  position: relative;
+  max-width: 580px;
+}
+
+.hero-search-form .form-control {
+  background-color: #111420;
+  border-color: #2a2f4a;
+  color: #e0e4f4;
+  padding: .75rem 1rem;
+}
+
+.hero-search-form .form-control:focus {
+  background-color: #151829;
+  border-color: rgba(255, 215, 0, 0.5);
+  box-shadow: 0 0 0 3px rgba(255, 215, 0, 0.15);
+  color: #fff;
+}
+
+/* ── Stats grid ──────────────────────────────────────────────────────────────── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  max-width: 340px;
+}
+
+.stat-card {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid #1e2235;
+  border-radius: 10px;
+  padding: 14px 10px;
+  text-align: center;
+}
+
+.stat-card i { font-size: 1.4rem; display: block; margin-bottom: 4px; }
+.stat-num  { font-size: 1.2rem; font-weight: 700; color: #e0e4f4; }
+.stat-label { font-size: .72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .03em; }
+
+/* ── Browse cards ────────────────────────────────────────────────────────────── */
+.browse-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border) !important;
+  border-radius: 12px;
+  padding: 18px 16px;
+  transition: transform .15s, border-color .15s, background .15s;
+}
+
+.browse-card:hover {
+  transform: translateY(-2px);
+  background: #161b2e;
+}
+
+.browse-name { font-weight: 600; color: #e0e4f4; margin-top: 10px; font-size: .95rem; }
+.browse-desc { font-size: .8rem; margin-top: 3px; }
+
+/* ── Object cards ────────────────────────────────────────────────────────────── */
+.obj-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  overflow: hidden;
+  transition: transform .15s, border-color .15s;
+}
+
+.obj-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(255, 215, 0, 0.3);
+}
+
+.obj-card-img {
+  position: relative;
+  aspect-ratio: 1;
+  background: #0a0c18;
+  overflow: hidden;
+}
+
+.obj-card-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform .3s;
+}
+
+.obj-card:hover .obj-card-img img { transform: scale(1.05); }
+
+.obj-card-img.no-img {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.no-img-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle, #0d1030 0%, #08090d 100%);
+  color: rgba(255,255,255,0.1);
+  font-size: 2rem;
+}
+
+.obj-badge-m {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  background: var(--star-gold);
+  color: #000;
+  font-size: .65rem;
+  font-weight: 700;
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+
+.obj-badge-type {
+  position: absolute;
+  bottom: 5px;
+  left: 5px;
+  background: rgba(0,0,0,0.7);
+  color: #aaa;
+  font-size: .6rem;
+  padding: 1px 5px;
+  border-radius: 4px;
+  backdrop-filter: blur(4px);
+}
+
+.obj-badge-season {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  color: #4caf50;
+  font-size: .85rem;
+  text-shadow: 0 0 6px rgba(76,175,80,0.8);
+}
+
+.obj-card-body {
+  padding: 8px 10px 10px;
+  flex: 1;
+}
+
+.obj-designation { font-size: .7rem; color: var(--text-muted); }
+.obj-name        { font-size: .85rem; font-weight: 600; color: #dde2f4; line-height: 1.2; min-height: 1.2em; }
+.obj-meta        { margin-top: 5px; }
+.obj-sub         { font-size: .72rem; margin-top: 3px; }
+
+.small-badge { font-size: .65rem !important; padding: .15em .4em !important; }
+
+/* ── Sky viewer ──────────────────────────────────────────────────────────────── */
+.sky-viewer-container {
+  border: 1px solid #1e2235;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #000;
+}
+
+.sky-viewer-header {
+  background: #0a0c1a;
+  border-bottom: 1px solid #1e2235;
+}
+
+#aladin-lite-div {
+  width: 100%;
+  height: 480px;
+  background: #000;
+}
+
+#aladin-lite-div.aladin-fullscreen {
+  position: fixed !important;
+  top: 0; left: 0;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 9999;
+  border-radius: 0;
+}
+
+.sky-thumb {
+  max-height: 300px;
+  object-fit: cover;
+}
+
+/* ── Object detail ───────────────────────────────────────────────────────────── */
+.bg-dark-card { background-color: var(--card-bg) !important; }
+.bg-dark-2    { background-color: #111420 !important; }
+
+.data-table td {
+  padding: 6px 14px !important;
+  font-size: .875rem;
+  vertical-align: middle;
+}
+
+.data-table td:first-child {
+  color: var(--text-muted);
+  width: 42%;
+  font-size: .8rem;
+}
+
+.object-header {
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #1a1f35;
+}
+
+/* Month badges */
+.month-badge {
+  font-size: .65rem !important;
+  padding: .2em .45em !important;
+  min-width: 30px;
+  text-align: center;
+}
+
+/* ── Constellation cards ──────────────────────────────────────────────────────── */
+.const-card {
+  transition: transform .15s, border-color .15s;
+}
+
+.const-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255,215,0,0.4) !important;
+  background: #161b2e !important;
+}
+
+.const-abbr { letter-spacing: .05em; }
+
+/* ── Messier table ───────────────────────────────────────────────────────────── */
+.thumb-mini {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+}
+
+.table-active-season {
+  background: rgba(76, 175, 80, 0.05) !important;
+}
+
+/* ── Progress bars ───────────────────────────────────────────────────────────── */
+.progress {
+  background-color: #1e2235;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .nav-search-form { width: 200px; }
+  .hero-section .display-5 { font-size: 1.7rem; }
+  #aladin-lite-div { height: 320px; }
+  .stats-grid { display: none; }
+}
+
+@media (max-width: 576px) {
+  .nav-search-form { display: none !important; }
+}
+
+/* ── Location modal & results ────────────────────────────────────────────────── */
+.loc-results {
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.loc-result-item {
+  display: flex;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background .12s, border-color .12s;
+  margin-bottom: 4px;
+  background: rgba(255,255,255,0.03);
+}
+
+.loc-result-item:hover {
+  background: #1a2040;
+  border-color: rgba(255, 215, 0, 0.3);
+}
+
+.location-name-short {
+  font-size: .78rem;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.location-nav-btn {
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+/* ── Scrollbar ───────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--space-dark); }
+::-webkit-scrollbar-thumb { background: #2a2f4a; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #3a4060; }
+
+/* ── Utilities ───────────────────────────────────────────────────────────────── */
+.border-warning { border-color: rgba(255,215,0,0.3) !important; }
+.card-header.border-warning { border-bottom-color: rgba(255,215,0,0.3) !important; }

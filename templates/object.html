@@ -1,0 +1,534 @@
+{% extends "base.html" %}
+{% block title %}
+  {% if obj.messier_number %}M{{ obj.messier_number }} / {% endif %}{{ obj.designation }}
+  {% if obj.common_name %} — {{ obj.common_name }}{% endif %}
+  · Deep Sky Observatory
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+  <!-- Breadcrumb + prev/next Messier nav -->
+  <div class="d-flex align-items-center gap-3 mb-3 flex-wrap">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-0 small">
+        <li class="breadcrumb-item"><a href="{{ url_for('index') }}" class="text-muted">Home</a></li>
+        {% if obj.object_type in ['G','GPair','GGroup','GClstr'] %}
+        <li class="breadcrumb-item"><a href="{{ url_for('browse', category='galaxies') }}" class="text-muted">Galaxies</a></li>
+        {% elif obj.object_type == 'GCl' %}
+        <li class="breadcrumb-item"><a href="{{ url_for('browse', category='globulars') }}" class="text-muted">Globular Clusters</a></li>
+        {% elif obj.object_type in ['OCl','OC+N','Cl+N','Ast'] %}
+        <li class="breadcrumb-item"><a href="{{ url_for('browse', category='open-clusters') }}" class="text-muted">Open Clusters</a></li>
+        {% elif obj.object_type == 'PN' %}
+        <li class="breadcrumb-item"><a href="{{ url_for('browse', category='planetary') }}" class="text-muted">Planetary Nebulae</a></li>
+        {% elif obj.object_type in ['Neb','RNe','EmN','HII','SNR'] %}
+        <li class="breadcrumb-item"><a href="{{ url_for('browse', category='nebulae') }}" class="text-muted">Nebulae</a></li>
+        {% endif %}
+        <li class="breadcrumb-item active">{{ obj.designation }}</li>
+      </ol>
+    </nav>
+
+    <!-- Messier prev/next -->
+    {% if obj.messier_number %}
+    <div class="ms-auto d-flex gap-2">
+      {% if prev_m %}
+      <a href="{{ url_for('object_detail', designation=prev_m.designation.replace(' ','-')) }}"
+         class="btn btn-sm btn-outline-secondary">
+        ‹ M{{ prev_m.messier_number }}
+      </a>
+      {% endif %}
+      <span class="btn btn-sm btn-warning text-dark disabled">M{{ obj.messier_number }}</span>
+      {% if next_m %}
+      <a href="{{ url_for('object_detail', designation=next_m.designation.replace(' ','-')) }}"
+         class="btn btn-sm btn-outline-secondary">
+        M{{ next_m.messier_number }} ›
+      </a>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="row g-4">
+
+    <!-- ── Left column: sky viewer + data cards ── -->
+    <div class="col-lg-8">
+
+      <!-- Object header -->
+      <div class="object-header mb-3">
+        <div class="d-flex align-items-start gap-3 flex-wrap">
+          <div>
+            {% if obj.messier_number %}
+            <span class="badge bg-warning text-dark fs-6 me-2">M{{ obj.messier_number }}</span>
+            {% endif %}
+            <h1 class="h2 d-inline mb-0">{{ obj.designation }}</h1>
+          </div>
+          <div class="ms-auto d-flex gap-2 flex-wrap">
+            <span class="badge bg-{{ obj.diff_color }} text-dark py-2 px-3">
+              <i class="bi bi-eye"></i> {{ obj.diff_label }}
+            </span>
+            {% if obj.in_season %}
+            <span class="badge bg-success py-2 px-3" title="Good viewing period now">
+              <i class="bi bi-moon-stars-fill"></i> In Season
+            </span>
+            {% endif %}
+          </div>
+        </div>
+        {% if obj.common_name %}
+        <h2 class="h4 text-warning mt-1 mb-0">{{ obj.common_name }}</h2>
+        {% endif %}
+        <div class="text-muted mt-1">
+          {{ obj.object_type_label or obj.object_type }}
+          {% if obj.constellation_name %} &nbsp;·&nbsp; {{ obj.constellation_name }} {% endif %}
+          {% if obj.hubble_type %} &nbsp;·&nbsp; {{ obj.hubble_type }} {% endif %}
+        </div>
+      </div>
+
+      <!-- ── Aladin Lite Sky Viewer ── -->
+      <div class="sky-viewer-container mb-4">
+        <div class="sky-viewer-header d-flex align-items-center justify-content-between px-3 py-2">
+          <span class="text-muted small"><i class="bi bi-camera"></i> Interactive Sky Viewer — drag to pan, scroll to zoom</span>
+          <div class="d-flex gap-2">
+            <select id="surveySelect" class="form-select form-select-sm bg-dark border-secondary text-light" style="width:auto">
+              <option>Loading…</option>
+            </select>
+            <button id="fullscreenBtn" class="btn btn-sm btn-outline-secondary">
+              <i class="bi bi-fullscreen"></i>
+            </button>
+          </div>
+        </div>
+        <div id="aladin-lite-div"></div>
+      </div>
+
+      <!-- ── Observer Notes ── -->
+      {% if obj.messier_notes %}
+      <div class="card bg-dark-card border-warning mb-4">
+        <div class="card-header border-warning py-2">
+          <i class="bi bi-binoculars text-warning"></i>
+          <strong class="text-warning ms-1">Observer Notes</strong>
+        </div>
+        <div class="card-body">
+          <p class="mb-0">{{ obj.messier_notes }}</p>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- ── Description from catalog ── -->
+      {% if obj.openngc_notes or obj.ned_notes %}
+      <div class="card bg-dark-card border-secondary mb-4">
+        <div class="card-header border-secondary py-2">
+          <i class="bi bi-info-circle text-info"></i> Catalog Notes
+        </div>
+        <div class="card-body small text-muted">
+          {% if obj.openngc_notes %}<p class="mb-1">{{ obj.openngc_notes }}</p>{% endif %}
+          {% if obj.ned_notes %}<p class="mb-0">{{ obj.ned_notes }}</p>{% endif %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- ── Cross-IDs ── -->
+      {% if obj.identifiers %}
+      <div class="card bg-dark-card border-secondary mb-4">
+        <div class="card-header border-secondary py-2">
+          <i class="bi bi-tags text-secondary"></i> Other Designations
+        </div>
+        <div class="card-body">
+          <div class="d-flex flex-wrap gap-1">
+            {% for ident in obj.identifiers.split(',') %}
+            <span class="badge bg-secondary bg-opacity-25 text-light border border-secondary">{{ ident.strip() }}</span>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+    </div>
+
+    <!-- ── Right column: data panel ── -->
+    <div class="col-lg-4">
+
+      <!-- DSS Thumbnail (static fallback) -->
+      {% if obj.thumb_url %}
+      <div class="mb-3">
+        <img src="{{ obj.thumb_url }}" alt="{{ obj.designation }} DSS image"
+             class="img-fluid rounded border border-secondary w-100 sky-thumb"
+             loading="lazy"
+             onerror="this.style.display='none'">
+        <div class="text-muted text-center mt-1" style="font-size:.7rem">
+          DSS2 Color · CDS Aladin
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Key data card -->
+      <div class="card bg-dark-card border-secondary mb-3">
+        <div class="card-header border-secondary py-2">
+          <i class="bi bi-card-list text-warning"></i> Object Data
+        </div>
+        <div class="card-body p-0">
+          <table class="table table-dark table-sm table-borderless mb-0 data-table">
+            <tbody>
+              {% macro row(label, value, unit='', cls='') %}
+              {% if value is not none and value != '' %}
+              <tr>
+                <td class="text-muted">{{ label }}</td>
+                <td class="{{ cls }}">{{ value }}{% if unit %} <span class="text-muted small">{{ unit }}</span>{% endif %}</td>
+              </tr>
+              {% endif %}
+              {% endmacro %}
+
+              {{ row('Designation', obj.designation) }}
+              {% if obj.messier_number %}
+              {{ row('Messier', 'M' ~ obj.messier_number) }}
+              {% endif %}
+              {{ row('Common Name', obj.common_name or obj.common_names_raw) }}
+              {{ row('Type', obj.object_type_label) }}
+              {% if obj.hubble_type %}
+              {{ row('Hubble Type', obj.hubble_type) }}
+              {% endif %}
+              {{ row('Constellation', obj.constellation_name) }}
+            </tbody>
+          </table>
+          <hr class="border-secondary my-0">
+          <table class="table table-dark table-sm table-borderless mb-0 data-table">
+            <tbody>
+              {{ row('Right Ascension', obj.ra) }}
+              {{ row('Declination', obj.dec) }}
+              {% if obj.ra_deg %}
+              {{ row('RA (decimal)', '%.4f'|format(obj.ra_deg), '°') }}
+              {% endif %}
+              {% if obj.dec_deg %}
+              {{ row('Dec (decimal)', '%.4f'|format(obj.dec_deg), '°') }}
+              {% endif %}
+            </tbody>
+          </table>
+          <hr class="border-secondary my-0">
+          <table class="table table-dark table-sm table-borderless mb-0 data-table">
+            <tbody>
+              {% if obj.magnitude_v %}
+              <tr>
+                <td class="text-muted">Visual Magnitude</td>
+                <td><span class="text-warning">★ {{ '%.2f'|format(obj.magnitude_v) }}</span></td>
+              </tr>
+              {% endif %}
+              {% if obj.magnitude_b %}
+              {{ row('Blue Magnitude', '%.2f'|format(obj.magnitude_b)) }}
+              {% endif %}
+              {% if obj.surface_brightness %}
+              {{ row('Surface Brightness', '%.1f'|format(obj.surface_brightness), 'mag/arcsec²') }}
+              {% endif %}
+              {% if obj.size_fmt %}
+              {{ row('Angular Size', obj.size_fmt) }}
+              {% endif %}
+              {% if obj.position_angle %}
+              {{ row('Position Angle', '%.0f'|format(obj.position_angle), '°') }}
+              {% endif %}
+            </tbody>
+          </table>
+          {% if obj.distance_fmt or obj.redshift or obj.radial_velocity_kms %}
+          <hr class="border-secondary my-0">
+          <table class="table table-dark table-sm table-borderless mb-0 data-table">
+            <tbody>
+              {% if obj.distance_fmt %}
+              {{ row('Distance', obj.distance_fmt) }}
+              {% endif %}
+              {% if obj.redshift %}
+              {{ row('Redshift (z)', '%.5f'|format(obj.redshift)) }}
+              {% endif %}
+              {% if obj.radial_velocity_kms %}
+              {{ row('Radial Velocity', '%.0f'|format(obj.radial_velocity_kms), 'km/s') }}
+              {% endif %}
+            </tbody>
+          </table>
+          {% endif %}
+          {% if obj.cstar_mag_v %}
+          <hr class="border-secondary my-0">
+          <table class="table table-dark table-sm table-borderless mb-0 data-table">
+            <tbody>
+              {{ row('Central Star Mag', '%.1f'|format(obj.cstar_mag_v)) }}
+            </tbody>
+          </table>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Observing info card -->
+      <div class="card bg-dark-card border-secondary mb-3">
+        <div class="card-header border-secondary py-2">
+          <i class="bi bi-telescope text-warning"></i> Observing Info
+        </div>
+        <div class="card-body">
+
+          <!-- Difficulty meter -->
+          <div class="mb-3">
+            <div class="d-flex justify-content-between mb-1">
+              <span class="small text-muted">Difficulty</span>
+              <span class="badge bg-{{ obj.diff_color }} text-dark">{{ obj.diff_label }}</span>
+            </div>
+            <div class="progress" style="height:6px">
+              <div class="progress-bar bg-{{ obj.diff_color }}"
+                   style="width: {{ (obj.difficulty or 3) * 20 }}%"></div>
+            </div>
+          </div>
+
+          {% if obj.min_aperture_mm is not none %}
+          <div class="mb-3">
+            <div class="small text-muted mb-1">Minimum Aperture</div>
+            <strong>
+              {% if obj.min_aperture_mm == 0 %}
+                Naked eye
+              {% else %}
+                {{ obj.min_aperture_mm }} mm ({{ (obj.min_aperture_mm / 25.4)|round|int }}")
+              {% endif %}
+            </strong>
+          </div>
+          {% endif %}
+
+          {% if obj.best_months %}
+          <div class="mb-3">
+            <div class="small text-muted mb-2">Best Viewing Months</div>
+            <div class="d-flex flex-wrap gap-1">
+              {% set month_names = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'] %}
+              {% for m in month_names %}
+              <span class="badge month-badge {% if m in obj.best_months %}bg-warning text-dark{% else %}bg-secondary bg-opacity-25 text-muted{% endif %}">
+                {{ m }}
+              </span>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+
+        </div>
+      </div>
+
+      <!-- Altitude / Horizon card (populated by JS when location is set) -->
+      <div class="card bg-dark-card border-secondary mb-3" id="horizonCard">
+        <div class="card-header border-secondary py-2 d-flex align-items-center justify-content-between">
+          <span><i class="bi bi-compass text-warning"></i> Current Position</span>
+          <span id="horizonLocName" class="text-muted small"></span>
+        </div>
+        <div class="card-body" id="horizonBody">
+          {% if not user_location %}
+          <div class="text-muted small text-center py-2">
+            <i class="bi bi-geo-alt"></i>
+            <a href="#" data-bs-toggle="modal" data-bs-target="#locationModal" class="text-muted">
+              Set your location
+            </a> to see altitude &amp; azimuth.
+          </div>
+          {% else %}
+          <div class="text-center py-2"><span class="spinner-border spinner-border-sm text-secondary"></span></div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- External links -->
+      <div class="card bg-dark-card border-secondary mb-3">
+        <div class="card-header border-secondary py-2">
+          <i class="bi bi-box-arrow-up-right text-secondary"></i> External Links
+        </div>
+        <div class="card-body d-grid gap-2">
+          {% if obj.ra_deg and obj.dec_deg %}
+          <a href="https://aladin.cds.unistra.fr/AladinLite/?target={{ obj.ra_deg }},{{ obj.dec_deg }}&fov={{ obj.image_fov * 3 }}&survey=P/DSS2/color"
+             target="_blank" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-map"></i> Aladin Sky Atlas
+          </a>
+          <a href="https://www.wikisky.org/?ra={{ obj.ra_deg }}&de={{ obj.dec_deg }}&zoom=8&show_grid=1&show_constellation_lines=1&show_constellation_borders=1&show_stellar_catalog=1&img_source=DSS2"
+             target="_blank" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-globe"></i> WikiSky
+          </a>
+          {% endif %}
+          <a href="https://simbad.u-strasbg.fr/simbad/sim-id?Ident={{ obj.designation|urlencode }}"
+             target="_blank" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-database"></i> SIMBAD Database
+          </a>
+          {% if obj.messier_number %}
+          <a href="https://www.messier.seds.org/m/m{{ '%03d'|format(obj.messier_number) }}.html"
+             target="_blank" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-book"></i> SEDS Messier Guide
+          </a>
+          {% endif %}
+          {% if obj.ra_deg and obj.dec_deg %}
+          <a href="https://skyview.gsfc.nasa.gov/current/cgi/runquery.pl?Position={{ obj.ra_deg }},{{ obj.dec_deg }}&survey=DSS2+Red&Pixels=600&Size={{ obj.image_fov }}&Return=JPG"
+             target="_blank" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-camera"></i> NASA SkyView Image
+          </a>
+          {% endif %}
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Related objects -->
+  {% if related %}
+  <section class="mt-2">
+    <h3 class="h5 mb-3 text-muted">
+      <i class="bi bi-grid text-warning"></i>
+      More {{ obj.object_type_label or 'Objects' }} in {{ obj.constellation_name }}
+    </h3>
+    <div class="row g-3">
+      {% for r in related %}
+      <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+        <a href="{{ url_for('object_detail', designation=r.designation.replace(' ','-')) }}"
+           class="obj-card text-decoration-none">
+          <div class="obj-card-img">
+            {% if r.thumb_sm_url %}
+            <img src="{{ r.thumb_sm_url }}" alt="{{ r.designation }}" loading="lazy"
+                 onerror="this.parentElement.classList.add('no-img')">
+            {% else %}
+            <div class="no-img-placeholder"><i class="bi bi-stars"></i></div>
+            {% endif %}
+            {% if r.messier_number %}
+            <span class="obj-badge-m">M{{ r.messier_number }}</span>
+            {% endif %}
+          </div>
+          <div class="obj-card-body">
+            <div class="obj-designation">{{ r.designation }}</div>
+            <div class="obj-name">{{ r.common_name or '' }}</div>
+            {% if r.magnitude_v %}
+            <div class="text-warning small">★ {{ '%.1f'|format(r.magnitude_v) }}</div>
+            {% endif %}
+          </div>
+        </a>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- ── Altitude / Azimuth (regular script, no module needed) ─────────────── -->
+<script>
+(function() {
+  {% if user_location and obj.ra_deg is not none %}
+  const ra  = {{ obj.ra_deg }};
+  const dec = {{ obj.dec_deg }};
+
+  function compassPoint(az) {
+    const pts = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+    return pts[Math.round(az / 22.5) % 16];
+  }
+
+  function altBar(alt) {
+    const pct = Math.max(0, Math.min(100, (alt + 10) / 100 * 100));
+    const col = alt > 30 ? 'success' : alt > 10 ? 'warning' : alt > 0 ? 'danger' : 'secondary';
+    return `<div class="progress mb-1" style="height:8px">
+      <div class="progress-bar bg-${col}" style="width:${pct}%" title="${alt}°"></div>
+    </div>`;
+  }
+
+  fetch(`/api/altaz?ra=${ra}&dec=${dec}`)
+    .then(r => r.json())
+    .then(d => {
+      const body = document.getElementById('horizonBody');
+      const locEl = document.getElementById('horizonLocName');
+      if (d.error) { body.innerHTML = `<div class="text-muted small">${d.error}</div>`; return; }
+      locEl.textContent = d.location.split(',')[0];
+
+      const above    = d.above_horizon;
+      const altColor = above ? (d.altitude > 30 ? 'success' : 'warning') : 'danger';
+
+      body.innerHTML = `
+        <div class="row g-2 text-center mb-3">
+          <div class="col-6">
+            <div class="small text-muted">Altitude</div>
+            <div class="h4 mb-0 text-${altColor}">${d.altitude}°</div>
+            <div class="small ${above ? 'text-success' : 'text-danger'}">
+              <i class="bi bi-${above ? 'check-circle' : 'x-circle'}"></i>
+              ${above ? 'Above horizon' : 'Below horizon'}
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="small text-muted">Azimuth</div>
+            <div class="h4 mb-0 text-info">${d.azimuth}°</div>
+            <div class="small text-muted">${compassPoint(d.azimuth)}</div>
+          </div>
+        </div>
+        ${altBar(d.altitude)}
+        <div class="row g-2 mt-2 small text-muted text-center">
+          <div class="col-4"><div>Max Alt</div><div class="text-light">${d.transit_alt}°</div></div>
+          <div class="col-4"><div>Rises at</div><div class="text-light">
+            ${d.is_circumpolar ? 'Circumpolar' : d.is_never_rises ? 'Never' : d.rise_az+'° '+compassPoint(d.rise_az)}
+          </div></div>
+          <div class="col-4"><div>Sets at</div><div class="text-light">
+            ${d.is_circumpolar ? 'Circumpolar' : d.is_never_rises ? 'Never' : d.set_az+'° '+compassPoint(d.set_az)}
+          </div></div>
+        </div>`;
+    })
+    .catch(() => {
+      document.getElementById('horizonBody').innerHTML =
+        '<div class="text-muted small text-center">Could not load position data.</div>';
+    });
+  {% endif %}
+})();
+</script>
+
+<!-- ── Aladin Lite v3 (ES module, loaded from local static file) ──────────── -->
+<script type="module">
+// aladin.js is served locally — downloaded from jsDelivr at setup time
+// so it works even if external CDNs are slow or blocked.
+import A from '{{ url_for("static", filename="aladin.js") }}';
+
+const SURVEYS = {
+  'CDS/P/DSS2/color':                   'DSS2 Color',
+  'CDS/P/DSS2/red':                     'DSS2 Red',
+  'CDS/P/2MASS/color':                  '2MASS Color',
+  'CDS/P/PanSTARRS/DR1/color-z-zg-g':  'PanSTARRS',
+  'CDS/P/SDSS9/color':                  'SDSS Color',
+  'CDS/P/allWISE/color':               'WISE Infrared',
+};
+
+// Update the selector options to use full survey IDs
+(function buildSelector() {
+  const sel = document.getElementById('surveySelect');
+  sel.innerHTML = Object.entries(SURVEYS).map(([id, label]) =>
+    `<option value="${id}">${label}</option>`
+  ).join('');
+})();
+
+try {
+  // v3 requires awaiting A.init (loads WASM) before creating viewer
+  await A.init;
+
+  const aladin = A.aladin('#aladin-lite-div', {
+    survey:                 'CDS/P/DSS2/color',
+    fov:                    {{ obj.image_fov * 4 }},
+    target:                 '{{ obj.ra_deg }} {{ obj.dec_deg }}',
+    cooFrame:               'ICRS',
+    showReticle:            true,
+    showZoomControl:        true,
+    showFullscreenControl:  false,
+    showLayersControl:      true,
+    showGotoControl:        false,
+    showSimbadPointerControl: true,
+    showCooGridControl:     true,
+    showProjectionControl:  false,
+  });
+
+  document.getElementById('surveySelect').addEventListener('change', function() {
+    aladin.setImageSurvey(this.value);
+  });
+
+  document.getElementById('fullscreenBtn').addEventListener('click', function() {
+    document.getElementById('aladin-lite-div').classList.toggle('aladin-fullscreen');
+  });
+
+} catch(e) {
+  console.error('Aladin Lite error:', e);
+  const msg = String(e).includes('WebGL2')
+    ? 'WebGL2 not supported by this browser'
+    : 'Sky viewer failed to initialize';
+  document.getElementById('aladin-lite-div').innerHTML =
+    `<div class="d-flex align-items-center justify-content-center h-100 text-muted">
+       <div class="text-center">
+         <i class="bi bi-exclamation-triangle fs-1 d-block mb-2"></i>
+         <div>${msg}</div>
+         <div class="small mt-2 text-muted">${e}</div>
+       </div>
+     </div>`;
+}
+</script>
+</script>
+{% endblock %}

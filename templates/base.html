@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ app_name }}{% endblock %}</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-black border-bottom border-secondary sticky-top">
+  <div class="container-fluid px-3">
+    <a class="navbar-brand d-flex align-items-center gap-2" href="{{ url_for('index') }}">
+      <span class="logo-icon">✦</span>
+      <span class="fw-bold">Deep Sky Observatory</span>
+    </a>
+    <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navMain">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navMain">
+      <!-- Search bar in navbar -->
+      <form class="d-flex mx-auto my-2 my-lg-0 nav-search-form" action="{{ url_for('search') }}" method="get" autocomplete="off">
+        <div class="input-group nav-search-group">
+          <input id="navSearch" name="q" type="search" class="form-control form-control-sm bg-dark border-secondary text-light"
+                 placeholder="M31, NGC 224, Andromeda…" value="{{ request.args.get('q','') }}">
+          <button class="btn btn-sm btn-outline-secondary" type="submit"><i class="bi bi-search"></i></button>
+        </div>
+        <div id="navAutocomplete" class="autocomplete-dropdown"></div>
+      </form>
+      <!-- Nav links -->
+      <ul class="navbar-nav ms-auto gap-1 align-items-lg-center">
+        <li class="nav-item">
+          <a class="nav-link px-2{% if request.endpoint == 'index' %} active{% endif %}" href="{{ url_for('index') }}">
+            <i class="bi bi-house"></i> Home
+          </a>
+        </li>
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle px-2" href="#" data-bs-toggle="dropdown">
+            <i class="bi bi-grid"></i> Browse
+          </a>
+          <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end">
+            <li><a class="dropdown-item" href="{{ url_for('browse', category='tonight') }}">
+              <i class="bi bi-moon-stars"></i> Tonight's Sky ({{ current_month }})</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="{{ url_for('browse', category='messier') }}">
+              <i class="bi bi-collection"></i> Messier Catalogue</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('browse', category='easy') }}">
+              <i class="bi bi-eye"></i> Naked Eye / Binoculars</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="{{ url_for('browse', category='galaxies') }}">
+              <i class="bi bi-tornado"></i> Galaxies</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('browse', category='globulars') }}">
+              <i class="bi bi-circle-fill"></i> Globular Clusters</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('browse', category='open-clusters') }}">
+              <i class="bi bi-stars"></i> Open Clusters</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('browse', category='nebulae') }}">
+              <i class="bi bi-cloud"></i> Nebulae</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('browse', category='planetary') }}">
+              <i class="bi bi-circle-half"></i> Planetary Nebulae</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="{{ url_for('browse') }}">
+              <i class="bi bi-map"></i> By Constellation</a></li>
+          </ul>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link px-2" href="{{ url_for('random_obj') }}" title="Random object">
+            <i class="bi bi-shuffle"></i>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link px-2" href="{{ url_for('settings_page') }}" title="Settings">
+            <i class="bi bi-gear"></i>
+          </a>
+        </li>
+        <!-- Location button -->
+        <li class="nav-item">
+          <button class="btn btn-link nav-link px-2 location-nav-btn" id="openLocationModal"
+                  title="Set observer location" data-bs-toggle="modal" data-bs-target="#locationModal">
+            {% if user_location %}
+            <span class="location-set-indicator">
+              <i class="bi bi-geo-alt-fill text-success"></i>
+              <span class="d-none d-xl-inline text-success location-name-short ms-1">{{ user_location.name.split(',')[0] }}</span>
+            </span>
+            {% else %}
+            <i class="bi bi-geo-alt text-muted"></i>
+            {% endif %}
+          </button>
+        </li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<!-- ── Location Modal ─────────────────────────────────────────────────────── -->
+<div class="modal fade" id="locationModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content bg-dark border-secondary">
+      <div class="modal-header border-secondary">
+        <h5 class="modal-title"><i class="bi bi-geo-alt text-warning"></i> Observer Location</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+
+        <p class="text-muted small mb-3">
+          Set your location to see altitude, azimuth, and horizon visibility for each object.
+        </p>
+
+        <!-- Current location display -->
+        <div id="currentLocDisplay" class="{% if not user_location %}d-none{% endif %} mb-3 p-3 rounded border border-success bg-opacity-10" style="background:rgba(76,175,80,0.08)">
+          <div class="d-flex align-items-start justify-content-between">
+            <div>
+              <i class="bi bi-geo-alt-fill text-success me-1"></i>
+              <strong id="currentLocName">{{ user_location.name if user_location else '' }}</strong>
+              <div class="text-muted small mt-1" id="currentLocCoords">
+                {% if user_location %}
+                {{ '%.4f'|format(user_location.lat) }}°, {{ '%.4f'|format(user_location.lon) }}°
+                {% endif %}
+              </div>
+            </div>
+            <button class="btn btn-sm btn-outline-danger" id="clearLocationBtn">
+              <i class="bi bi-x"></i> Clear
+            </button>
+          </div>
+        </div>
+
+        <!-- Search -->
+        <label class="form-label text-muted small">Search for a new location</label>
+        <div class="input-group mb-2">
+          <input type="text" id="locSearchInput" class="form-control bg-dark border-secondary text-light"
+                 placeholder="City, state, zip code, or country…">
+          <button class="btn btn-outline-warning" id="locSearchBtn" type="button">
+            <i class="bi bi-search"></i> Search
+          </button>
+        </div>
+        <div id="locSearchResults" class="loc-results"></div>
+        <div id="locSearchError" class="text-danger small mt-1 d-none"></div>
+
+        <!-- Manual coordinates entry -->
+        <div class="mt-3">
+          <a class="text-muted small" data-bs-toggle="collapse" href="#manualCoords">
+            <i class="bi bi-chevron-down"></i> Enter coordinates manually
+          </a>
+          <div class="collapse mt-2" id="manualCoords">
+            <div class="row g-2">
+              <div class="col-6">
+                <input type="number" id="manualLat" class="form-control form-control-sm bg-dark border-secondary text-light"
+                       placeholder="Latitude (e.g. 40.7128)" step="0.0001" min="-90" max="90">
+              </div>
+              <div class="col-6">
+                <input type="number" id="manualLon" class="form-control form-control-sm bg-dark border-secondary text-light"
+                       placeholder="Longitude (e.g. -74.006)" step="0.0001" min="-180" max="180">
+              </div>
+            </div>
+            <button class="btn btn-sm btn-outline-secondary mt-2" id="manualSaveBtn">
+              <i class="bi bi-check"></i> Save coordinates
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Main content -->
+<main>
+  {% block content %}{% endblock %}
+</main>
+
+<!-- Footer -->
+<footer class="border-top border-secondary mt-5 py-4 text-center text-muted small">
+  <div class="container">
+    <p class="mb-1">
+      Data: <a href="https://github.com/mattiaverga/OpenNGC" target="_blank" class="text-muted">OpenNGC</a> catalog
+      · Sky images: <a href="https://skyview.gsfc.nasa.gov" target="_blank" class="text-muted">NASA SkyView / DSS</a>
+      · Geocoding: <a href="https://nominatim.openstreetmap.org" target="_blank" class="text-muted">OpenStreetMap Nominatim</a>
+    </p>
+    <p class="mb-0">Deep Sky Observatory — backyard astronomer's reference</p>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// ── Autocomplete ──────────────────────────────────────────────────────────────
+(function() {
+  const inp = document.getElementById('navSearch');
+  const box = document.getElementById('navAutocomplete');
+  let timer;
+  if (!inp) return;
+  inp.addEventListener('input', () => {
+    clearTimeout(timer);
+    const q = inp.value.trim();
+    if (q.length < 2) { box.innerHTML=''; box.classList.remove('show'); return; }
+    timer = setTimeout(() => {
+      fetch(`/api/autocomplete?q=${encodeURIComponent(q)}`)
+        .then(r => r.json())
+        .then(data => {
+          if (!data.length) { box.innerHTML=''; box.classList.remove('show'); return; }
+          box.innerHTML = data.map(d =>
+            `<a href="${d.url}" class="ac-item">
+               <span class="ac-label">${d.label}</span>
+               <span class="ac-type">${d.type||''}</span>
+             </a>`
+          ).join('');
+          box.classList.add('show');
+        });
+    }, 200);
+  });
+  document.addEventListener('click', e => {
+    if (!inp.contains(e.target) && !box.contains(e.target)) box.classList.remove('show');
+  });
+})();
+
+// ── Location modal ────────────────────────────────────────────────────────────
+(function() {
+  const searchBtn   = document.getElementById('locSearchBtn');
+  const searchInp   = document.getElementById('locSearchInput');
+  const results     = document.getElementById('locSearchResults');
+  const errDiv      = document.getElementById('locSearchError');
+  const clearBtn    = document.getElementById('clearLocationBtn');
+  const manualSave  = document.getElementById('manualSaveBtn');
+  const locDisplay  = document.getElementById('currentLocDisplay');
+  const locName     = document.getElementById('currentLocName');
+  const locCoords   = document.getElementById('currentLocCoords');
+
+  function showLocation(loc) {
+    if (loc) {
+      locName.textContent   = loc.name;
+      locCoords.textContent = `${loc.lat.toFixed(4)}°, ${loc.lon.toFixed(4)}°`;
+      locDisplay.classList.remove('d-none');
+    } else {
+      locDisplay.classList.add('d-none');
+    }
+  }
+
+  function saveLocation(lat, lon, name) {
+    fetch('/api/location', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({lat, lon, name})
+    })
+    .then(r => r.json())
+    .then(d => {
+      if (d.ok) {
+        showLocation(d.location);
+        results.innerHTML = '';
+        // Update navbar icon
+        const icon = document.querySelector('.location-nav-btn');
+        if (icon) icon.innerHTML = `<span class="location-set-indicator"><i class="bi bi-geo-alt-fill text-success"></i></span>`;
+        // Brief success flash then close
+        setTimeout(() => {
+          bootstrap.Modal.getInstance(document.getElementById('locationModal'))?.hide();
+          location.reload();
+        }, 600);
+      }
+    });
+  }
+
+  if (searchBtn) {
+    const doSearch = () => {
+      const q = searchInp.value.trim();
+      if (!q) return;
+      searchBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+      errDiv.classList.add('d-none');
+      fetch(`/api/geocode?q=${encodeURIComponent(q)}`)
+        .then(r => r.json())
+        .then(data => {
+          searchBtn.innerHTML = '<i class="bi bi-search"></i> Search';
+          if (data.error) { errDiv.textContent = data.error; errDiv.classList.remove('d-none'); return; }
+          if (!data.length) { errDiv.textContent = 'No results found.'; errDiv.classList.remove('d-none'); return; }
+          results.innerHTML = data.map(p =>
+            `<div class="loc-result-item" data-lat="${p.lat}" data-lon="${p.lon}" data-name="${p.name.replace(/"/g,'&quot;')}">
+               <i class="bi bi-geo-alt text-warning me-2"></i>
+               <span>${p.name}</span>
+               <span class="text-muted ms-2 small">${p.lat.toFixed(3)}, ${p.lon.toFixed(3)}</span>
+             </div>`
+          ).join('');
+        })
+        .catch(() => {
+          searchBtn.innerHTML = '<i class="bi bi-search"></i> Search';
+          errDiv.textContent = 'Search failed. Check internet connection.';
+          errDiv.classList.remove('d-none');
+        });
+    };
+
+    searchBtn.addEventListener('click', doSearch);
+    searchInp.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+
+    results.addEventListener('click', e => {
+      const item = e.target.closest('.loc-result-item');
+      if (!item) return;
+      saveLocation(parseFloat(item.dataset.lat), parseFloat(item.dataset.lon), item.dataset.name);
+    });
+  }
+
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      fetch('/api/location', {method: 'DELETE'})
+        .then(() => { location.reload(); });
+    });
+  }
+
+  if (manualSave) {
+    manualSave.addEventListener('click', () => {
+      const lat = parseFloat(document.getElementById('manualLat').value);
+      const lon = parseFloat(document.getElementById('manualLon').value);
+      if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+        alert('Please enter valid coordinates.');
+        return;
+      }
+      saveLocation(lat, lon, `${lat.toFixed(4)}°, ${lon.toFixed(4)}°`);
+    });
+  }
+})();
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

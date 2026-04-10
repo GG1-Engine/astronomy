@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block title %}{% if title %}{{ title }}{% else %}Browse{% endif %} · Deep Sky Observatory{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+{% if category is none %}
+  <!-- ── Constellation overview ── -->
+  <div class="d-flex align-items-baseline gap-3 mb-4">
+    <h1 class="h3 mb-0"><i class="bi bi-map text-warning"></i> Browse by Constellation</h1>
+    <span class="text-muted">{{ constellations|length }} constellations</span>
+  </div>
+
+  <div class="row g-2">
+    {% for c in constellations %}
+    <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+      <a href="{{ url_for('constellation', const=c.constellation) }}"
+         class="const-card text-decoration-none d-block p-3 rounded border border-secondary bg-dark-card h-100">
+        <div class="const-abbr text-warning fw-bold fs-5">{{ c.constellation_name }}</div>
+        <div class="small text-muted mt-1">{{ c.total }} objects</div>
+        {% if c.brightest %}
+        <div class="small text-secondary">brightest ★ {{ '%.1f'|format(c.brightest) }}</div>
+        {% endif %}
+        {% if c.messier_count %}
+        <div class="small text-info mt-1">{{ c.messier_count }}× Messier</div>
+        {% endif %}
+      </a>
+    </div>
+    {% endfor %}
+  </div>
+
+{% else %}
+  <!-- ── Category listing ── -->
+  <div class="d-flex align-items-baseline gap-3 mb-1">
+    <h1 class="h3 mb-0">
+      {% if category == 'tonight' %}<i class="bi bi-moon-stars text-warning"></i>
+      {% elif category == 'messier' %}<i class="bi bi-collection text-warning"></i>
+      {% elif category == 'easy' %}<i class="bi bi-eye text-success"></i>
+      {% elif category == 'galaxies' %}<i class="bi bi-tornado text-primary"></i>
+      {% elif category == 'globulars' %}<i class="bi bi-circle-fill text-secondary"></i>
+      {% elif category == 'open-clusters' %}<i class="bi bi-stars text-info"></i>
+      {% elif category == 'nebulae' %}<i class="bi bi-cloud text-warning"></i>
+      {% elif category == 'planetary' %}<i class="bi bi-circle-half text-success"></i>
+      {% elif category == 'constellation' %}<i class="bi bi-map text-warning"></i>
+      {% endif %}
+      {{ title }}
+    </h1>
+  </div>
+  <p class="text-muted mb-4">{{ subtitle }}</p>
+
+  {% if category == 'messier' %}
+  <!-- ── Special Messier table view ── -->
+  <div class="table-responsive">
+    <table class="table table-dark table-hover table-sm align-middle">
+      <thead class="border-secondary">
+        <tr>
+          <th>M#</th>
+          <th>Image</th>
+          <th>Designation</th>
+          <th>Common Name</th>
+          <th>Type</th>
+          <th>Const</th>
+          <th>Mag</th>
+          <th>Size</th>
+          <th>Distance</th>
+          <th>Best Months</th>
+          <th>Difficulty</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for obj in items %}
+        <tr class="{% if obj.in_season %}table-active-season{% endif %}">
+          <td><span class="badge bg-warning text-dark">M{{ obj.messier_number }}</span></td>
+          <td>
+            {% if obj.thumb_sm_url %}
+            <a href="{{ url_for('object_detail', designation=obj.designation.replace(' ','-')) }}">
+              <img src="{{ obj.thumb_sm_url }}" alt="{{ obj.designation }}"
+                   class="thumb-mini rounded" loading="lazy"
+                   onerror="this.style.display='none'">
+            </a>
+            {% endif %}
+          </td>
+          <td>
+            <a href="{{ url_for('object_detail', designation=obj.designation.replace(' ','-')) }}"
+               class="text-light text-decoration-none fw-bold">{{ obj.designation }}</a>
+          </td>
+          <td class="text-warning">{{ obj.common_name or '' }}</td>
+          <td><span class="text-muted small">{{ obj.object_type_label or obj.object_type }}</span></td>
+          <td class="text-muted">{{ obj.constellation_name }}</td>
+          <td class="text-warning">{% if obj.magnitude_v %}★ {{ '%.1f'|format(obj.magnitude_v) }}{% endif %}</td>
+          <td class="text-muted small">{{ obj.size_fmt or '' }}</td>
+          <td class="text-muted small">{{ obj.distance_fmt or '' }}</td>
+          <td>
+            {% if obj.best_months %}
+            <span class="{% if obj.in_season %}text-success fw-bold{% else %}text-muted{% endif %} small">
+              {% if obj.in_season %}<i class="bi bi-moon-stars-fill"></i> {% endif %}{{ obj.best_months }}
+            </span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="badge bg-{{ obj.diff_color }} text-dark small-badge">{{ obj.diff_label }}</span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% else %}
+  <!-- ── Card grid view ── -->
+  <div class="row g-3">
+    {% for obj in items %}
+    <div class="col-6 col-sm-4 col-md-3 col-xl-2">
+      <a href="{{ url_for('object_detail', designation=obj.designation.replace(' ','-')) }}"
+         class="obj-card text-decoration-none h-100">
+        <div class="obj-card-img">
+          {% if obj.thumb_sm_url %}
+          <img src="{{ obj.thumb_sm_url }}" alt="{{ obj.designation }}" loading="lazy"
+               onerror="this.parentElement.classList.add('no-img')">
+          {% else %}
+          <div class="no-img-placeholder"><i class="bi bi-stars"></i></div>
+          {% endif %}
+          {% if obj.messier_number %}
+          <span class="obj-badge-m">M{{ obj.messier_number }}</span>
+          {% endif %}
+          {% if obj.in_season %}
+          <span class="obj-badge-season" title="Good viewing month now">
+            <i class="bi bi-moon-stars-fill"></i>
+          </span>
+          {% endif %}
+        </div>
+        <div class="obj-card-body">
+          <div class="obj-designation">{{ obj.designation }}</div>
+          <div class="obj-name">{{ obj.common_name or '' }}</div>
+          <div class="obj-meta d-flex justify-content-between align-items-center">
+            <span class="badge bg-{{ obj.diff_color }} text-dark small-badge">{{ obj.diff_label }}</span>
+            {% if obj.magnitude_v %}
+            <span class="text-warning small">★ {{ '%.1f'|format(obj.magnitude_v) }}</span>
+            {% endif %}
+          </div>
+          <div class="obj-sub text-muted small">
+            {{ obj.object_type_label or '' }}
+            {% if obj.constellation_name %} · {{ obj.constellation_name }}{% endif %}
+            {% if obj.size_fmt %} · {{ obj.size_fmt }}{% endif %}
+          </div>
+        </div>
+      </a>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+{% endif %}
+
+</div>
+{% endblock %}

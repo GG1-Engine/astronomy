@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+{% block title %}Deep Sky Observatory — Messier & NGC Database{% endblock %}
+
+{% block content %}
+
+<!-- Hero -->
+<div class="hero-section">
+  <div class="container py-5">
+    <div class="row align-items-center">
+      <div class="col-lg-7">
+        <h1 class="display-5 fw-bold mb-2">
+          <span class="text-warning">✦</span> Deep Sky Observatory
+        </h1>
+        <p class="lead text-secondary mb-4">
+          A backyard astronomer's guide to <strong class="text-light">{{ stats.total|int|format_num }}</strong>
+          deep-sky objects — Messier, NGC, and IC catalogs.
+        </p>
+        <!-- Big search bar -->
+        <form action="{{ url_for('search') }}" method="get" autocomplete="off" class="hero-search-form">
+          <div class="input-group input-group-lg shadow">
+            <input id="heroSearch" name="q" type="search" class="form-control border-0 bg-dark-2"
+                   placeholder="Search by name, M number, NGC, constellation…">
+            <button class="btn btn-warning px-4" type="submit">
+              <i class="bi bi-search"></i> Search
+            </button>
+          </div>
+          <div id="heroAutocomplete" class="autocomplete-dropdown hero-ac"></div>
+          <div class="mt-2 text-muted small">
+            Try: <a href="{{ url_for('object_detail', designation='NGC-224') }}" class="text-secondary">M31</a>,
+            <a href="{{ url_for('object_detail', designation='NGC-1976') }}" class="text-secondary">Orion Nebula</a>,
+            <a href="{{ url_for('object_detail', designation='NGC-5194') }}" class="text-secondary">Whirlpool Galaxy</a>,
+            <a href="{{ url_for('search') }}?const=Sgr" class="text-secondary">Sagittarius</a>
+          </div>
+        </form>
+      </div>
+      <div class="col-lg-5 d-none d-lg-flex justify-content-end">
+        <div class="stats-grid">
+          {% for label, key, icon in [
+            ('Objects', 'total', 'bi-database'),
+            ('Messier', 'messier', 'bi-collection'),
+            ('Galaxies', 'galaxies', 'bi-tornado'),
+            ('Clusters', 'clusters', 'bi-circle-fill'),
+            ('Nebulae', 'nebulae', 'bi-cloud'),
+            ('Easy targets', 'easy', 'bi-eye'),
+          ] %}
+          <div class="stat-card">
+            <i class="bi {{ icon }} text-warning"></i>
+            <div class="stat-num">{{ stats[key]|format_num }}</div>
+            <div class="stat-label">{{ label }}</div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Tonight's Sky -->
+{% if tonight %}
+<section class="py-4 border-top border-secondary">
+  <div class="container">
+    <div class="d-flex align-items-baseline gap-3 mb-3">
+      <h2 class="h4 mb-0">
+        <i class="bi bi-moon-stars text-warning"></i> Tonight's Sky
+      </h2>
+      <span class="text-muted">Best objects for <strong class="text-light">{{ current_month }}</strong></span>
+      <a href="{{ url_for('browse', category='tonight') }}" class="ms-auto text-secondary small">See all →</a>
+    </div>
+    <div class="row g-3">
+      {% for obj in tonight %}
+      <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+        <a href="{{ url_for('object_detail', designation=obj.designation.replace(' ','-')) }}"
+           class="obj-card text-decoration-none">
+          <div class="obj-card-img">
+            {% if obj.thumb_sm_url %}
+            <img src="{{ obj.thumb_sm_url }}" alt="{{ obj.designation }}" loading="lazy"
+                 onerror="this.parentElement.classList.add('no-img')">
+            {% else %}
+            <div class="no-img-placeholder"><i class="bi bi-stars"></i></div>
+            {% endif %}
+            {% if obj.messier_number %}
+            <span class="obj-badge-m">M{{ obj.messier_number }}</span>
+            {% endif %}
+            <span class="obj-badge-type {{ obj.type_icon }}">{{ obj.object_type_label or obj.object_type }}</span>
+          </div>
+          <div class="obj-card-body">
+            <div class="obj-name">{{ obj.common_name or obj.designation }}</div>
+            <div class="obj-meta">
+              <span class="text-warning">★ {{ '%.1f'|format(obj.magnitude_v) if obj.magnitude_v }}</span>
+              <span class="text-muted ms-1">{{ obj.constellation_name }}</span>
+            </div>
+          </div>
+        </a>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<!-- Browse by type -->
+<section class="py-4 border-top border-secondary">
+  <div class="container">
+    <h2 class="h4 mb-3"><i class="bi bi-grid text-warning"></i> Browse by Type</h2>
+    <div class="row g-3">
+      {% set browse_cats = [
+        ('tonight',      'bi-moon-stars',     'Tonight — '+current_month,  'Best objects this month',         'warning'),
+        ('messier',      'bi-collection',     'Messier Catalogue',          '110 classic deep-sky objects',    'info'),
+        ('easy',         'bi-eye',            'Naked Eye / Binoculars',     'No telescope required',           'success'),
+        ('galaxies',     'bi-tornado',        'Galaxies',                   stats.galaxies|string+' objects',  'primary'),
+        ('globulars',    'bi-circle-fill',    'Globular Clusters',          'Dense stellar balls',             'secondary'),
+        ('open-clusters','bi-stars',          'Open Clusters',              'Young star groups',               'info'),
+        ('nebulae',      'bi-cloud',          'Nebulae',                    'Gas and dust clouds',             'warning'),
+        ('planetary',    'bi-circle-half',    'Planetary Nebulae',          'Dying star shells',               'success'),
+      ] %}
+      {% for cat, icon, name, desc, color in browse_cats %}
+      <div class="col-6 col-md-4 col-lg-3">
+        <a href="{{ url_for('browse', category=cat) }}" class="browse-card text-decoration-none border-{{ color }}">
+          <i class="bi {{ icon }} text-{{ color }} fs-2"></i>
+          <div class="browse-name">{{ name }}</div>
+          <div class="browse-desc text-muted">{{ desc }}</div>
+        </a>
+      </div>
+      {% endfor %}
+      <div class="col-6 col-md-4 col-lg-3">
+        <a href="{{ url_for('browse') }}" class="browse-card text-decoration-none border-secondary">
+          <i class="bi bi-map text-secondary fs-2"></i>
+          <div class="browse-name">By Constellation</div>
+          <div class="browse-desc text-muted">All 88 constellations</div>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Featured Messier strip -->
+{% if featured %}
+<section class="py-4 border-top border-secondary">
+  <div class="container">
+    <div class="d-flex align-items-baseline gap-3 mb-3">
+      <h2 class="h4 mb-0"><i class="bi bi-collection text-warning"></i> Messier Highlights</h2>
+      <a href="{{ url_for('browse', category='messier') }}" class="ms-auto text-secondary small">Full catalogue →</a>
+    </div>
+    <div class="row g-3">
+      {% for obj in featured %}
+      <div class="col-6 col-sm-4 col-md-2">
+        <a href="{{ url_for('object_detail', designation=obj.designation.replace(' ','-')) }}"
+           class="obj-card text-decoration-none">
+          <div class="obj-card-img">
+            {% if obj.thumb_sm_url %}
+            <img src="{{ obj.thumb_sm_url }}" alt="{{ obj.designation }}" loading="lazy"
+                 onerror="this.parentElement.classList.add('no-img')">
+            {% endif %}
+            <span class="obj-badge-m">M{{ obj.messier_number }}</span>
+          </div>
+          <div class="obj-card-body">
+            <div class="obj-name">{{ obj.common_name or obj.designation }}</div>
+            <div class="obj-meta text-warning">★ {{ '%.1f'|format(obj.magnitude_v) if obj.magnitude_v }}</div>
+          </div>
+        </a>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Hero search autocomplete
+(function() {
+  const inp = document.getElementById('heroSearch');
+  const box = document.getElementById('heroAutocomplete');
+  let timer;
+  if (!inp) return;
+  inp.addEventListener('input', () => {
+    clearTimeout(timer);
+    const q = inp.value.trim();
+    if (q.length < 2) { box.innerHTML=''; box.classList.remove('show'); return; }
+    timer = setTimeout(() => {
+      fetch(`/api/autocomplete?q=${encodeURIComponent(q)}`)
+        .then(r => r.json())
+        .then(data => {
+          if (!data.length) { box.innerHTML=''; box.classList.remove('show'); return; }
+          box.innerHTML = data.map(d =>
+            `<a href="${d.url}" class="ac-item">
+               <span class="ac-label">${d.label}</span>
+               <span class="ac-type">${d.type||''}</span>
+             </a>`
+          ).join('');
+          box.classList.add('show');
+        });
+    }, 200);
+  });
+  document.addEventListener('click', e => {
+    if (!inp.contains(e.target)) { box.classList.remove('show'); }
+  });
+})();
+</script>
+{% endblock %}
