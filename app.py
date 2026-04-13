@@ -151,6 +151,28 @@ def fetch_thumb(ra, dec, fov, px):
             continue
     return None
 
+def fmt_ra(ra_str):
+    """Format RA from HH:MM:SS.ss to HHhMMmSSs."""
+    if not ra_str:
+        return ra_str
+    parts = ra_str.split(':')
+    if len(parts) != 3:
+        return ra_str
+    h, m, s = int(parts[0]), int(parts[1]), round(float(parts[2]))
+    return f"{h:02d}h{m:02d}m{s:02d}s"
+
+def fmt_dec(dec_str):
+    """Format Dec from ±DD:MM:SS.s to ±DDdMM'SS\"."""
+    if not dec_str:
+        return dec_str
+    sign = '-' if dec_str.startswith('-') else '+'
+    clean = dec_str.lstrip('+-')
+    parts = clean.split(':')
+    if len(parts) != 3:
+        return dec_str
+    d, m, s = int(parts[0]), int(parts[1]), round(float(parts[2]))
+    return f"{sign}{d:02d}\u00b0{m:02d}'{s:02d}\""
+
 @app.template_filter("format_num")
 def format_num(n):
     try:
@@ -249,6 +271,10 @@ def enrich(obj):
     """Add computed display fields to an object dict."""
     if obj is None:
         return None
+
+    # Formatted RA / Dec
+    obj["ra_fmt"]  = fmt_ra(obj.get("ra") or "")
+    obj["dec_fmt"] = fmt_dec(obj.get("dec") or "")
 
     # Constellation full name
     const_abbr = obj.get("constellation") or ""
@@ -716,6 +742,36 @@ def autocomplete():
             "url":   url_for("object_detail", designation=r["designation"].replace(" ", "-")),
         })
     conn.close()
+
+    # Solar system objects — matched against the query string
+    q_lower = q.lower()
+    ss_base = url_for("solar_system_page")
+    for name, data in {**ss.PLANETS, **ss.DWARF_PLANETS}.items():
+        if q_lower in name.lower():
+            slug = name.lower().replace(" ", "-")
+            results.append({
+                "label": f"{data.get('symbol', '')} {name} — {data['type']}".strip(),
+                "value": name,
+                "type":  data["type"],
+                "url":   f"{ss_base}#planet-{slug}",
+            })
+    for name in ss.COMETS:
+        if q_lower in name.lower():
+            results.append({
+                "label": f"☄ {name} — Comet",
+                "value": name,
+                "type":  "Comet",
+                "url":   f"{ss_base}#comets",
+            })
+    for name in ss._TLE_URLS:
+        if q_lower in name.lower():
+            results.append({
+                "label": f"🛰 {name} — Earth Satellite",
+                "value": name,
+                "type":  "Earth Satellite",
+                "url":   f"{ss_base}#satellites",
+            })
+
     return jsonify(results)
 
 

@@ -68,7 +68,7 @@
   </div>
 
   <!-- ── Planets ────────────────────────────────────────────────────────────── -->
-  <h2 class="h5 text-muted mb-3"><i class="bi bi-globe2 text-warning"></i> Planets &amp; Dwarf Planets</h2>
+  <h2 id="planets" class="h5 text-muted mb-3"><i class="bi bi-globe2 text-warning"></i> Planets &amp; Dwarf Planets</h2>
   <div class="table-responsive mb-5">
     <table class="table table-dark table-hover table-sm align-middle">
       <thead class="border-secondary">
@@ -88,7 +88,7 @@
       </thead>
       <tbody>
         {% for p in planets %}
-        <tr class="{% if p.above_horizon %}table-active-season{% endif %}">
+        <tr id="planet-{{ p.name|lower|replace(' ', '-') }}" class="{% if p.above_horizon %}table-active-season{% endif %}">
           <td>
             <span class="me-1">{{ p.symbol }}</span>
             <strong>{{ p.name }}</strong>
@@ -119,7 +119,7 @@
   </div>
 
   <!-- ── Satellites ─────────────────────────────────────────────────────────── -->
-  <h2 class="h5 text-muted mb-3"><i class="bi bi-broadcast text-warning"></i> Earth Satellites</h2>
+  <h2 id="satellites" class="h5 text-muted mb-3"><i class="bi bi-broadcast text-warning"></i> Earth Satellites</h2>
   <p class="text-muted small mb-3">Positions update in real time using live TLE data from Celestrak (auto-refreshed every 6 hours).</p>
   <div class="row g-3 mb-5">
     {% for sat in satellites %}
@@ -167,7 +167,7 @@
   </div>
 
   <!-- ── Comets ─────────────────────────────────────────────────────────────── -->
-  <h2 class="h5 text-muted mb-3"><i class="bi bi-stars text-warning"></i> Notable Comets</h2>
+  <h2 id="comets" class="h5 text-muted mb-3"><i class="bi bi-stars text-warning"></i> Notable Comets</h2>
   <p class="text-muted small mb-3">
     Magnitudes are computed from orbital elements and current distance — accuracy varies with element age.
     Comets fainter than magnitude 12 require a telescope; above magnitude 6 may be naked-eye.

@@ -78,7 +78,7 @@ body {
   transition: background .12s;
 }
 
-.ac-item:hover { background: #1a2040; color: #fff; }
+.ac-item:hover, .ac-item.ac-active { background: #1a2040; color: #fff; }
 .ac-label { font-size: .9rem; }
 .ac-type  { font-size: .75rem; color: var(--text-muted); white-space: nowrap; margin-left: 8px; }
 
@@ -393,3 +393,6 @@ body {
 /* ── Utilities ───────────────────────────────────────────────────────────────── */
 .border-warning { border-color: rgba(255,215,0,0.3) !important; }
 .card-header.border-warning { border-bottom-color: rgba(255,215,0,0.3) !important; }
+
+/* ── Anchor target highlight ─────────────────────────────────────────────────── */
+tr:target { outline: 2px solid rgba(255,215,0,0.6); background: rgba(255,215,0,0.08) !important; }

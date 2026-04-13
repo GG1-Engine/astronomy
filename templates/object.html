@@ -191,14 +191,8 @@
           <hr class="border-secondary my-0">
           <table class="table table-dark table-sm table-borderless mb-0 data-table">
             <tbody>
-              {{ row('Right Ascension', obj.ra) }}
-              {{ row('Declination', obj.dec) }}
-              {% if obj.ra_deg %}
-              {{ row('RA (decimal)', '%.4f'|format(obj.ra_deg), '°') }}
-              {% endif %}
-              {% if obj.dec_deg %}
-              {{ row('Dec (decimal)', '%.4f'|format(obj.dec_deg), '°') }}
-              {% endif %}
+              {{ row('Right Ascension', obj.ra_fmt or obj.ra) }}
+              {{ row('Declination', obj.dec_fmt or obj.dec) }}
             </tbody>
           </table>
           <hr class="border-secondary my-0">
